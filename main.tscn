@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://cq00r3c5aww25"]
+
+[ext_resource type="Script" uid="uid://dbeqiup8s543r" path="res://main.gd" id="1_ig7tw"]
+[ext_resource type="PackedScene" uid="uid://b3pht0xsw0mef" path="res://particle_sim.tscn" id="2_0xm2m"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_ig7tw")
+collision_edge_outer = 6.172
+collision_neg_exp = 0.589
+collision_force = 1320.57
+rule_radius = 1928.23
+rule_force = 0.127
+global_friction = 503.392
+air_friction = 0.989
+
+[node name="ParticleSim" parent="." instance=ExtResource("2_0xm2m")]
+lifetime = 0.01
+draw_order = 0

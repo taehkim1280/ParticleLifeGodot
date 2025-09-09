@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://ca47hxgrnimtt"
+path="res://.godot/imported/particle_sim_gpu.glsl-8e7985a4a66299f9cb4b65a3b5aa095a.res"
+
+[deps]
+
+source_file="res://particle_sim_gpu.glsl"
+dest_files=["res://.godot/imported/particle_sim_gpu.glsl-8e7985a4a66299f9cb4b65a3b5aa095a.res"]
+
+[params]
+
