@@ -2,19 +2,25 @@ extends Node2D
 
 
 @export_category("Particle Params")
-@export_range(0, 10000) var NUM_PARTICLES := 3000
+@export_range(0, 10000) var NUM_PARTICLES := 6000
 
 @export_range(0, 10000) var max_force := 5000.0
 
 @export_range(0, 50) var attraction_radius := 25.0
 @export_range(0, 50) var attraction_force := 10.0
 @export_range(0, 30) var collision_edge_outer := 30.0
+@export_range(0, 20) var collision_edge_inner := 5.0:
+	set(value):
+		collision_edge_inner = clamp(value, 0, collision_edge_outer)
 @export_range(0, 2) var collision_neg_exp := 0.8
 @export_range(0, 4000) var collision_force := 3100.0
 
 @export_range(0, 2000) var rule_radius := 1500.0
+@export_range(0, 2000) var rule_radius_inner := 5.0:
+	set(value): 
+		rule_radius_inner = clamp(value, 0, rule_radius)
 @export_range(0, 10) var rule_force := 1.0
-@export_range(0, 50) var rule_force_falloff := 1.0
+@export_range(0, 20) var rule_force_exp := 1.0
 
 @export_range(0, 5000) var global_friction := 500.0
 @export_range(0.5, 1) var air_friction := 0.97
@@ -28,17 +34,17 @@ class Particle_Rule:
 
 # negative values means attraction
 var particle_rules_a := [
-	[-80.0,	-10.0, 	-10.0, 	-3.0, 	-3.0], 	# red reacts to _ in this way..
-	[-10.0,	-80.0, 	-10.0, 	-3.0, 	-3.0], 	# green
-	[-10.0,	-10.0, 	-20.0, 	-3.0, 	-3.0], 	# blue
-	[-03.0, 	-03.0, 	-03.0, 	-10.0, 	-03.0], 	# indigo
-	[-3.0, 	-3.0, 	-3.0, 	-3.0, 	-40.0] 	# cyan
+	[-15.0,	10.0, 	10.0, 	0.0, 	0.0], 	# red reacts to _ in this way..
+	[-10.0,	-30.0, 	-10.0, 	0.0, 	0.0], 	# green
+	[-50.0,	-50.0, 	30.0, 	0.0, 	5.0], 	# blue
+	[1.0, 	-1.0, 	1.0, 	-1.0, 	3.0], 	# indigo
+	[3.0, 	3.0, 	-30.0, 	-3.0, 	-20.0] 	# cyan
 ]
 var particle_rules_b := [
-	[-40.0,	30.0, 	-10.0, 	-3.0, 	-3.0], 	# red reacts to _ in this way..
+	[-25.0,	30.0, 	-10.0, 	-3.0, 	-3.0], 	# red reacts to _ in this way..
 	[-30.0,	-30.0, 	-10.0, 	-3.0, 	-3.0], 	# green
 	[-10.0,	40.0, 	-20.0, 	-3.0, 	-3.0], 	# blue
-	[33.0, 	-03.0, 	-03.0, 	-10.0, 	-03.0], 	# indigo
+	[27.0, 	-03.0, 	-03.0, 	-10.0, 	-03.0], 	# indigo
 	[-3.0, 	-3.0, 	-3.0, 	23.0, 	-5.0] 	# cyan
 ]
 var particle_rules_c := [
@@ -46,11 +52,30 @@ var particle_rules_c := [
 	[-20.0,	-40.0, 	30.0, 	-0.0, 	-0.0], 	# green
 	[00.0,	-20.0, 	-40.0, 	30.0, 	-3.0], 	# blue
 	[0.0, 	-00.0, 	-20.0, 	-40.0, 	30.0], 	# indigo
-	[0.0, 	-0.0, 	-0.0, 	-20.0, 	-40.0] 	# cyan
+	[0.0, 	-0.0, 	-0.0, 	-20.0, 	30.0] 	# cyan
+]
+var particle_rules_d;
+
+var particle_rules_f := [
+	# R      G       B       I       C
+	[ -10.0,  20.0, -25.0,  15.0,   5.0 ],  # Red: weak self-attract, repelled by green/indigo
+	[ -20.0, -10.0,  18.0, -25.0,  10.0 ],  # Green: likes red+indigo, dislikes blue
+	[ -15.0,  25.0, -8.0,   5.0,  -20.0 ],  # Blue: clumps a bit, pulled to red/cyan, repelled by green
+	[  10.0, -20.0,  15.0, -5.0,  -25.0 ],  # Indigo: attracted to green+cyan, pushes red
+	[  5.0,   8.0,  -18.0, -22.0, -6.0 ]    # Cyan: orbits blue/indigo, slightly cohesive
+]
+
+var particle_rules_e := [
+	#   R       G       B       I       C
+	[ -15.0,   25.0,   -5.0,    0.0,    0.0 ],  # Red: mild self-attraction, repelled by Green
+	[ -25.0,  -10.0,    20.0,    0.0,    0.0 ],  # Green: clumps strongly, pushed by Blue
+	[   15.0,  -20.0,   -5.0,    5.0,    0.0 ],  # Blue: attracted to Green, adds instability
+	[    0.0,    0.0,     0.0,   -3.0,    -8.0 ],  # Indigo: nearly inert, weak self-attract
+	[    0.0,    0.0,     0.0,    3.0,   -8.0 ]   # Cyan: nearly inert, just clumps slowly
 ]
 
 var particle_colors := [
-	Color.RED, 
+	Color.WHITE, 
 	Color.GREEN, 
 	Color.BLUE, 
 	Color.INDIGO,
@@ -87,7 +112,7 @@ var particle_data_buffer : RID
 func _generate_particles():
 	for i in NUM_PARTICLES:
 		particle_pos.append(Vector2(randf() * get_viewport_rect().size.x, randf() * get_viewport_rect().size.y))
-		particle_type.append(randi_range(0, 1))
+		particle_type.append(randi_range(0, NUM_COLORS-1))
 	particle_last_pos = particle_pos.duplicate(true)
 	particle_wrapped_displacement = particle_pos.duplicate(true)
 
@@ -153,6 +178,16 @@ func _setup_compute_shader():
 
 	# set member with pipeline
 	particle_pipeline = rd.compute_pipeline_create(particle_compute_shader)
+
+
+
+	particle_rules_d = [
+		[randf_range(-30, 30),	randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),], 	# red reacts to _ in this way..
+		[randf_range(-30, 30),	randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),], 	# green
+		[randf_range(-30, 30),	randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),], 	# blue
+		[randf_range(-30, 30),	randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),], 	# indigo
+		[randf_range(-30, 30),	randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),randf_range(-30, 30),] 	# cyan
+	]
 	
 	# //////////////////////////////////////////////////////////
 	# //////////////////     INPUTS      ///////////////////////
@@ -177,7 +212,7 @@ func _setup_compute_shader():
 	var particle_rules_concat : Array[float] = []
 	for i in range(NUM_COLORS):
 		for j in range(NUM_COLORS):
-			particle_rules_concat.append(particle_rules_c[i][j])
+			particle_rules_concat.append(particle_rules_d[i][j])
 	particle_rules_buffer = _generate_float_buffer(particle_rules_concat)
 	var particle_rules_uniform = _generate_uniform(particle_rules_buffer, RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, 5)
 
@@ -285,11 +320,14 @@ func _generate_parameter_buffer(delta: float):
 		attraction_radius,
 		attraction_force,
 		collision_edge_outer,
+		collision_edge_inner,
 		collision_neg_exp,
 		collision_force,
 
 		rule_radius,
+		rule_radius_inner,
 		rule_force,
+		rule_force_exp,
 
 		global_friction,
 		air_friction,

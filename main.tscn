@@ -5,13 +5,15 @@
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_ig7tw")
-collision_edge_outer = 6.172
-collision_neg_exp = 0.589
-collision_force = 1320.57
-rule_radius = 1928.23
-rule_force = 0.127
-global_friction = 503.392
-air_friction = 0.989
+NUM_PARTICLES = 3000
+collision_edge_outer = 26.649
+collision_edge_inner = 4.149
+collision_force = 142.554
+rule_radius = 520.367
+rule_radius_inner = 0.0
+rule_force = 0.841
+rule_force_exp = 0.958
+air_friction = 0.974
 
 [node name="ParticleSim" parent="." instance=ExtResource("2_0xm2m")]
 lifetime = 0.01

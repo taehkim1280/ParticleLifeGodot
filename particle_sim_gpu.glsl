@@ -31,12 +31,16 @@ layout(set = 0, binding = 4, std430) restrict buffer Params {
 
     float attraction_radius;
     float attraction_force;
+
     float collision_edge_outer;
+    float collision_edge_inner;
     float collision_neg_exp;
     float collision_force;
 
     float rule_radius;
+    float rule_radius_inner;
     float rule_force;
+    float rule_force_exp;
 
     float global_friction;
     float air_friction;
@@ -93,6 +97,18 @@ void main() {
             vec2 other_pos_b = other_pos_m - h;
             vec2 other_pos_br = other_pos_m - h + w;
 
+            vec2 other_pos_full[9];
+            other_pos_full = vec2[9](
+                other_pos_m,
+                other_pos_tl,
+                other_pos_t ,
+                other_pos_tr,
+                other_pos_l ,
+                other_pos_r ,
+                other_pos_bl,
+                other_pos_b ,
+                other_pos_br
+            );
             vec2 other_poss[4];
             {
                 if (quadrant == ivec2(0, 0)) { // top left
@@ -129,8 +145,8 @@ void main() {
                 }
             }
 
-            for (int j = 0; j < 4; j++) {
-                vec2 other_pos = other_poss[j];
+            for (int j = 0; j < 9; j++) {
+                vec2 other_pos = other_pos_full[j];
 
                 vec2 other_v = cur_pos - other_pos;
                 vec2 other_n = normalize(other_v);
@@ -145,7 +161,11 @@ void main() {
 
                     int other_rule = particle_rule.data[i];
                     other_to_my_force += particle_rules.data[int(params.num_rules)*my_rule + other_rule];
-                    other_to_my_force *= params.rule_force*(params.rule_radius-dist)/params.rule_radius;
+
+                    float dist_coefficient = (params.rule_radius-dist)/params.rule_radius;
+                    float dist_coefficient_max = (params.rule_radius-params.rule_radius_inner)/params.rule_radius;
+
+                    other_to_my_force *= (1000.0/params.num_particles)*params.rule_force*pow(min(dist_coefficient_max, dist_coefficient), params.rule_force_exp);
 
                     total_force += other_n*other_to_my_force;
                 }
@@ -159,8 +179,10 @@ void main() {
                 
                 if (dist < params.collision_edge_outer) {
                     // This force gets very strong as dist -> 0
+
+                    float repulsionmax = params.collision_force * (params.collision_edge_outer - params.collision_edge_inner) / pow(params.collision_edge_inner, params.collision_neg_exp);
                     float repulsion = params.collision_force * (params.collision_edge_outer - dist) / pow(dist, params.collision_neg_exp);
-                    total_force += other_n * repulsion;
+                    total_force += other_n * min(repulsionmax, repulsion);
                 }
 
                 // float total_force_m = length(total_force);
